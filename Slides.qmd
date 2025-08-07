@@ -25,7 +25,6 @@ library(DT)
 library(ggplot2)
 library(ggthemes)
 library(srvyr)
-
 ```
 
 
@@ -45,7 +44,7 @@ library(srvyr)
 
 - [Census documentation](https://www.census.gov/data/developers/guidance/api-user-guide.html)
 
-## Useful R packages
+## Useful R packages {.smaller}
 
 - **censusapi**
   - Any data program available on Census API
@@ -124,7 +123,7 @@ findvars_tidy %>%
 
 ```{r}
 #| label: cleannames
-myvars_labeled <- 
+myvars_labeled <-
   findvars_tidy %>%
   filter(str_detect(name, "B25002")) %>%
   separate_wider_delim(label, names = c(NA, NA, "Status"), delim = "!!", too_few = "align_start") %>%
@@ -177,13 +176,13 @@ vocc_durham_tidy_lab
 #| label: bymap
 #| eval: false
 vocc_durham_tidy_lab %>%
-  filter(Status!="All") %>%
+  filter(Status != "All") %>%
   group_by(GEOID) %>%
-  mutate(Percent=estimate/sum(estimate)*100) %>%
-  ggplot(aes(fill=Percent)) +
+  mutate(Percent = estimate / sum(estimate) * 100) %>%
+  ggplot(aes(fill = Percent)) +
   geom_sf() +
   facet_wrap(~Status) +
-  theme_map() + 
+  theme_map() +
   scale_fill_viridis_c(option = "plasma") +
   theme(legend.position = "bottom")
 ```
@@ -194,6 +193,7 @@ vocc_durham_tidy_lab %>%
 ```{r}
 #| label: bymap-do
 #| echo: false
+
 <<bymap>>
 ```
 
@@ -211,11 +211,11 @@ Warning - this data can be large!!!
 ## Identify variables 
 
 ```{r}
-pums_vars_2023 <- 
+pums_vars_2023 <-
   pums_variables %>%
   filter(year == year_select, survey == "acs5")
 
-pums_vars_2023 %>% print(n=6)
+pums_vars_2023 %>% print(n = 6)
 ```
 
 - There are `r nrow(pums_vars_2023 %>% distinct(var_code))` distinct variables!
@@ -251,7 +251,7 @@ pums_recoded <- get_pums(
   year = year_select,
   recode = TRUE,
   rep_weights = "person"
-  )
+)
 ```
 
 ## Glimpse the microdata
@@ -274,13 +274,12 @@ library(srvyr)
 pums_recoded %>%
   to_survey() %>%
   filter(AGEP %in% c(18:25)) %>%
-  filter(as.numeric(SCHL) >= 16 ) %>%
+  filter(as.numeric(SCHL) >= 16) %>%
   group_by(PUMA, SCHG_label) %>%
   summarize(
-    N=survey_total(),
-    Pct=survey_mean()*100
+    N = survey_total(),
+    Pct = survey_mean() * 100
   )
-
 ```
 
 ## Make custom estimates
