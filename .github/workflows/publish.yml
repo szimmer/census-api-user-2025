@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        
+      - name: Install linux packages
+        run: sudo apt install cmake gdal-bin libcurl4-openssl-dev libgdal-dev libudunits2-dev libx11-dev pandoc
 
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
