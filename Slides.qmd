@@ -14,10 +14,12 @@ execute:
 
 ```{r}
 #| label: setup
+#| include: false
 
 library(dplyr)
 library(magrittr)
 library(stringr)
+library(DT)
 ```
 
 
