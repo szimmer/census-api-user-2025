@@ -1,0 +1,177 @@
+---
+title: "Accessing Census Data in R through APIs"
+author: "Stephanie Zimmer"
+format: 
+  revealjs:
+      slide-number: true
+      theme: solarized
+      scrollable: true
+execute: 
+  echo: true
+  tidy: true
+  error: true
+---
+
+```{r}
+#| label: setup
+
+library(dplyr)
+library(magrittr)
+library(stringr)
+```
+
+
+
+# Overview
+
+## Census API
+
+- What is the Census API?
+  - An API that gives access to data from many programs
+
+- Programs include:
+  - American Community Survey: tables and microdata
+  - Decennial Census
+  - Population Estimates and Projections
+  - And more
+
+- [Census documentation](https://www.census.gov/data/developers/guidance/api-user-guide.html)
+
+## Useful R packages
+
+- **censusapi**
+  - Any data program available on Census API
+  - Data is not cleaned
+
+- **tidycensus**
+  - ACS tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data
+  - Wrappers are written so you don't have to understand the API details
+  - Data is somewhat cleaned (e.g. -555555555 is changed to missing as it is a missing code)
+  
+
+
+## Census geographies
+
+Data may not be available for all geographies. More years of data generally means smaller areas available
+
+![](https://mcdc.missouri.edu/geography/sumlevs/censusgeochart.png){fig-alt="Census geography hierarchy figure"}
+
+## Motivating example
+
+Find number of housing units by occupancy status in each block group in Durham County, NC from ACS 2019-2023 data
+
+```{r}
+#| label: yearset
+year_select <- 2023
+```
+
+
+## API keys
+
+- An API key is needed and needs to be requested^[https://api.census.gov/data/key_signup.html]
+
+- Bad practice to store an API key in your code
+
+- Install the API key locally to your .Renviron file
+
+- Only need to do this per device you use
+
+```r
+tidycensus::census_api_key("abcdefghijkl", overwrite = TRUE, install = TRUE)
+```
+
+Retrieve using:
+
+```r
+Sys.getenv("CENSUS_API_KEY")
+```
+
+# censusapi package
+
+## Workflow
+
+1. Use `listCensusApis` to find the API you are looking for
+2. Find the variables
+  + Use `listCensusMetadata` to find out more information about that specific API, or
+  + Use `makeVarlist` to identify variables you want to extract (optional)
+4. Use `getCensus` to query the data
+
+
+## All the APIs
+
+```{r}
+#| label: load-censusapi
+#| include: false
+
+library(censusapi)
+```
+
+
+```{r}
+#| label: allapis
+#| cache: true
+library(censusapi)
+
+allAPIs <- listCensusApis(vintage = year_select)
+
+head(allAPIs)
+```
+
+
+## Finding our API
+
+```{r}
+#| echo: false
+#| label: allapis-display
+DT::datatable(dplyr::select(allAPIs, title, name, vintage), filter = list(position = "top"), options = list(pageLength = 4, dom = "tp"))
+```
+
+
+## Find variables
+
+```{r}
+#| label: findvars
+#| cache: true
+findvars <- makeVarlist(name = "acs/acs5", vintage = year_select, find = "occupancy", output = "dataframe", varsearch = "concept") 
+```
+
+```{r}
+#| echo: false
+#| label: findvars-display
+DT::datatable(dplyr::select(findvars, name, label, concept, group) %>% arrange(name),
+              filter = list(position = "top"), options = list(pageLength = 4, dom = "tp"))
+```
+
+## Specify found variables
+
+```{r}
+#| label: selectvars
+myvars <- findvars %>%
+  filter(group == "B25002") %>%
+  arrange(name) %>%
+  pull(name)
+myvars
+```
+
+. . . 
+
+If you want margin of errors as well, add those. These have same variable name but end in "M" instead of "E"
+
+```{r}
+#| label: selectvars-moe
+myvars <- c(myvars, str_replace(myvars, "E$", "M")) %>% sort()
+myvars
+```
+
+
+## Get the data
+
+```{r}
+#| label: getdat
+vocc_durham <- getCensus(
+  name = "acs/acs5", vintage = year_select, vars = myvars,
+  region = "block group:*", regionin = "state:37+county:063",
+  show_call = FALSE, convert_variables = TRUE)
+
+head(vocc_durham)
+```

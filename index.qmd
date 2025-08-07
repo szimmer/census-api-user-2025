@@ -1,11 +1,5 @@
 ---
-title: "census-api-user-2025"
+title: Accessing Census Data in R through APIs
 ---
 
-This is a Quarto website.
-
-To learn more about Quarto websites visit <https://quarto.org/docs/websites>.
-
-```{r}
-1 + 1
-```
+This talk will give an overview of Census APIs available and how to find out which surveys have data available through the Census API. Brief examples will be given on how to use the censusapi R package which can access any data in the API. The tidycensus R package specifically can access ACS tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data. This tutorial will give examples of how to find relevant variables from ACS tables or decennial data using the tidycensus package. Examples of getting the data will be provided and how to easily make maps of the data.
