@@ -6,6 +6,7 @@ format:
       slide-number: true
       theme: solarized
       scrollable: true
+      footer: "**Slides** : [**https://szimmer.github.io/census-api-user-2025/Slides.html**](https://szimmer.github.io/census-api-user-2025/Slides.html#/title-slide)"
 execute: 
   echo: true
   tidy: true
@@ -19,7 +20,12 @@ execute:
 library(dplyr)
 library(magrittr)
 library(stringr)
+library(tidyr)
 library(DT)
+library(ggplot2)
+library(ggthemes)
+library(srvyr)
+
 ```
 
 
@@ -44,29 +50,12 @@ library(DT)
 - **censusapi**
   - Any data program available on Census API
   - Data is not cleaned
+  - Not discussed today
 
 - **tidycensus**
   - ACS tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data
-  - Wrappers are written so you don't have to understand the API details
-  - Data is somewhat cleaned (e.g. -555555555 is changed to missing as it is a missing code)
-  
-
-
-## Census geographies
-
-Data may not be available for all geographies. More years of data generally means smaller areas available
-
-![](https://mcdc.missouri.edu/geography/sumlevs/censusgeochart.png){fig-alt="Census geography hierarchy figure"}
-
-## Motivating example
-
-Find number of housing units by occupancy status in each block group in Durham County, NC from ACS 2019-2023 data
-
-```{r}
-#| label: yearset
-year_select <- 2023
-```
-
+  - Nice wrappers
+  - Data has special missing codes changed to `r NA`
 
 ## API keys
 
@@ -88,92 +77,223 @@ Retrieve using:
 Sys.getenv("CENSUS_API_KEY")
 ```
 
-# censusapi package
+# tidycensus package example
 
-## Workflow
+## Workflow for getting tabular estimates
 
-1. Use `listCensusApis` to find the API you are looking for
-2. Find the variables
-  + Use `listCensusMetadata` to find out more information about that specific API, or
-  + Use `makeVarlist` to identify variables you want to extract (optional)
-4. Use `getCensus` to query the data
+1. Find the variables using `load_variables()`
+2. Use `get_acs()`, `get_decennial()`, `get_flows()`, or `get_estimates()` to query the data
 
 
-## All the APIs
 
-```{r}
-#| label: load-censusapi
-#| include: false
 
-library(censusapi)
-```
+## Motivating example
 
+Find number of housing units by occupancy status in each block group in Durham County, NC from ACS 2019-2023 data
 
 ```{r}
-#| label: allapis
-#| cache: true
-library(censusapi)
-
-allAPIs <- listCensusApis(vintage = year_select)
-
-head(allAPIs)
-```
-
-
-## Finding our API
-
-```{r}
-#| echo: false
-#| label: allapis-display
-DT::datatable(dplyr::select(allAPIs, title, name, vintage), filter = list(position = "top"), options = list(pageLength = 4, dom = "tp"))
+#| label: yearset
+year_select <- 2023
 ```
 
 
 ## Find variables
 
+- Looking at 5-year ACS data
+
 ```{r}
-#| label: findvars
-#| cache: true
-findvars <- makeVarlist(name = "acs/acs5", vintage = year_select, find = "occupancy", output = "dataframe", varsearch = "concept") 
+#| label: findvarsb
+library(tidycensus)
+library(sf)
+findvars_tidy <- load_variables(year = year_select, dataset = "acs5")
 ```
 
-```{r}
-#| echo: false
-#| label: findvars-display
-DT::datatable(dplyr::select(findvars, name, label, concept, group) %>% arrange(name),
-              filter = list(position = "top"), options = list(pageLength = 4, dom = "tp"))
-```
+## Find variables
 
-## Specify found variables
+- Looking at 5-year ACS data
 
 ```{r}
-#| label: selectvars
-myvars <- findvars %>%
-  filter(group == "B25002") %>%
+#| label: findvars-dt
+
+findvars_tidy %>%
   arrange(name) %>%
-  pull(name)
-myvars
+  filter(str_detect(str_to_lower(concept), "occupancy"))
 ```
 
-. . . 
-
-If you want margin of errors as well, add those. These have same variable name but end in "M" instead of "E"
+## Clean up variable labels for later
 
 ```{r}
-#| label: selectvars-moe
-myvars <- c(myvars, str_replace(myvars, "E$", "M")) %>% sort()
-myvars
-```
+#| label: cleannames
+myvars_labeled <- 
+  findvars_tidy %>%
+  filter(str_detect(name, "B25002")) %>%
+  separate_wider_delim(label, names = c(NA, NA, "Status"), delim = "!!", too_few = "align_start") %>%
+  mutate(Status = if_else(is.na(Status), "All", Status)) %>%
+  select(name, Status)
 
+myvars_labeled
+```
 
 ## Get the data
 
 ```{r}
-#| label: getdat
-vocc_durham <- getCensus(
-  name = "acs/acs5", vintage = year_select, vars = myvars,
-  region = "block group:*", regionin = "state:37+county:063",
-  show_call = FALSE, convert_variables = TRUE)
-
-head(vocc_durham)
+#| label: getdat2
+#| output: false
+#| warning: false
+vocc_durham_tidy <- get_acs(
+  geography = "block group",
+  variables = pull(myvars_labeled, name),
+  year = year_select,
+  survey = "acs5",
+  state = "37",
+  county = "063",
+  geometry = TRUE
+)
 ```
+
+## Get the data
+
+```{r}
+#| label: getdat3
+vocc_durham_tidy
+```
+
+## Label data
+
+
+```{r}
+#| label: labdat
+vocc_durham_tidy_lab <-
+  vocc_durham_tidy %>%
+  select(-NAME) %>%
+  left_join(myvars_labeled, by = c("variable" = "name"))
+
+vocc_durham_tidy_lab
+```
+
+## Bonus - easy map - by occupancy status
+
+```{r}
+#| label: bymap
+#| eval: false
+vocc_durham_tidy_lab %>%
+  filter(Status!="All") %>%
+  group_by(GEOID) %>%
+  mutate(Percent=estimate/sum(estimate)*100) %>%
+  ggplot(aes(fill=Percent)) +
+  geom_sf() +
+  facet_wrap(~Status) +
+  theme_map() + 
+  scale_fill_viridis_c(option = "plasma") +
+  theme(legend.position = "bottom")
+```
+
+
+## Bonus - easy map - by occupancy status
+
+```{r}
+#| label: bymap-do
+#| echo: false
+<<bymap>>
+```
+
+
+# Microdata in ACS - tidycensus
+
+## Workflow
+
+1. Identify geography of interest 
+2. Identify variables of interest (`pums_variables`)
+3. Use `get_pums()` to query data
+
+Warning - this data can be large!!!
+
+## Identify variables 
+
+```{r}
+pums_vars_2023 <- 
+  pums_variables %>%
+  filter(year == year_select, survey == "acs5")
+
+pums_vars_2023 %>% print(n=6)
+```
+
+- There are `r nrow(pums_vars_2023 %>% distinct(var_code))` distinct variables!
+- Can also review [data dictionary](https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/PUMS_Data_Dictionary_2019-2023.pdf)
+
+
+## Get some microdata
+
+- For Durham, we want PUMAs 37 01301 and 37 01302 (Durham County South and North, respectively)^[https://www2.census.gov/geo/pdfs/reference/puma2020/2020_PUMA_Names.pdf]
+
+```r
+pums_recoded <- get_pums(
+  variables = c("PUMA", "SEX", "AGEP", "SCHL", "SCHG"),
+  state = "NC",
+  puma = c("01301", "01302"),
+  survey = "acs5",
+  year = year_select,
+  recode = TRUE,
+  rep_weights = "person"
+  )
+```
+
+```{r}
+#| label: pums-get
+#| cache: true
+#| message: false
+#| include: false
+pums_recoded <- get_pums(
+  variables = c("PUMA", "SEX", "AGEP", "SCHL", "SCHG"),
+  state = "NC",
+  puma = c("01301", "01302"),
+  survey = "acs5",
+  year = year_select,
+  recode = TRUE,
+  rep_weights = "person"
+  )
+```
+
+## Glimpse the microdata
+
+```{r}
+#| label: pums-glimpse
+
+glimpse(pums_recoded)
+```
+
+## Make custom estimates
+
+- Example: Level of school attendance among those who have finished high school, age 18-25
+
+```{r}
+#| label: cust-est
+#| eval: false
+library(srvyr)
+
+pums_recoded %>%
+  to_survey() %>%
+  filter(AGEP %in% c(18:25)) %>%
+  filter(as.numeric(SCHL) >= 16 ) %>%
+  group_by(PUMA, SCHG_label) %>%
+  summarize(
+    N=survey_total(),
+    Pct=survey_mean()*100
+  )
+
+```
+
+## Make custom estimates
+
+- Example: Level of school attendance among those who have finished high school, age 18-25
+
+```{r}
+#| eval: true
+#| echo: false
+
+<<cust-est>>
+```
+
+
+
+# Questions

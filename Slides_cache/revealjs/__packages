@@ -1,1 +1,9 @@
-censusapi
+dplyr
+magrittr
+stringr
+tidyr
+DT
+ggplot2
+ggthemes
+tidycensus
+sf
