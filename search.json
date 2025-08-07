@@ -53,14 +53,14 @@
     "href": "Slides.html#finding-our-api",
     "title": "Accessing Census Data in R through APIs",
     "section": "Finding our API",
-    "text": "Finding our API\n\n\nError in loadNamespace(x): there is no package called 'DT'"
+    "text": "Finding our API"
   },
   {
     "objectID": "Slides.html#find-variables",
     "href": "Slides.html#find-variables",
     "title": "Accessing Census Data in R through APIs",
     "section": "Find variables",
-    "text": "Find variables\n\nfindvars &lt;- makeVarlist(name = \"acs/acs5\", vintage = year_select, find = \"occupancy\", output = \"dataframe\", varsearch = \"concept\") \n\n\n\nError in loadNamespace(x): there is no package called 'DT'"
+    "text": "Find variables\n\nfindvars &lt;- makeVarlist(name = \"acs/acs5\", vintage = year_select, find = \"occupancy\", output = \"dataframe\", varsearch = \"concept\")"
   },
   {
     "objectID": "Slides.html#specify-found-variables",
