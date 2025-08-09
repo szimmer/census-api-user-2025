@@ -1,5 +1,12 @@
 [
   {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Accessing Census Data in R through APIs",
+    "section": "",
+    "text": "This talk will give an overview of Census APIs available and how to find out which surveys have data available through the Census API. Brief examples will be given on how to use the censusapi R package which can access any data in the API. The tidycensus R package specifically can access ACS tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data. This tutorial will give examples of how to find relevant variables from ACS tables or decennial data using the tidycensus package. Examples of getting the data will be provided and how to easily make maps of the data."
+  },
+  {
     "objectID": "Slides.html#census-api",
     "href": "Slides.html#census-api",
     "title": "Accessing Census Data in R through APIs",
@@ -11,7 +18,7 @@
     "href": "Slides.html#useful-r-packages",
     "title": "Accessing Census Data in R through APIs",
     "section": "Useful R packages",
-    "text": "Useful R packages\n\ncensusapi\n\nAny data program available on Census API\nData is not cleaned\nNot discussed today\n\ntidycensus\n\nACS tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data\nNice wrappers\nData has special missing codes changed to NA"
+    "text": "Useful R packages\n\ncensusapi\n\nAny data program available on Census API\nData is not cleaned\nNot discussed today\n\ntidycensus\n\nAmerican Community Survey (ACS) tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data\nNice wrappers\nData has special missing codes changed to NA"
   },
   {
     "objectID": "Slides.html#api-keys",
@@ -32,63 +39,70 @@
     "href": "Slides.html#motivating-example",
     "title": "Accessing Census Data in R through APIs",
     "section": "Motivating example",
-    "text": "Motivating example\nFind number of housing units by occupancy status in each block group in Durham County, NC from ACS 2019-2023 data\n\nyear_select &lt;- 2023"
+    "text": "Motivating example\nFind number of housing units by where current college students live in each block group in Durham County, NC from ACS 2019-2023 data\n\nyear_select &lt;- 2023"
   },
   {
     "objectID": "Slides.html#find-variables",
     "href": "Slides.html#find-variables",
     "title": "Accessing Census Data in R through APIs",
     "section": "Find variables",
-    "text": "Find variables\n\nLooking at 5-year ACS data\n\n\nlibrary(tidycensus)\nlibrary(sf)\nfindvars_tidy &lt;- load_variables(year = year_select, dataset = \"acs5\")"
+    "text": "Find variables\n\nLooking at 5-year ACS data\n\n\nlibrary(tidycensus)\nlibrary(sf)\nfindvars_tidy &lt;- load_variables(year = year_select, dataset = \"acs5\")\nglimpse(findvars_tidy)\n\nRows: 28,261\nColumns: 4\n$ name      &lt;chr&gt; \"B01001A_001\", \"B01001A_002\", \"B01001A_003\", \"B01001A_004\", …\n$ label     &lt;chr&gt; \"Estimate!!Total:\", \"Estimate!!Total:!!Male:\", \"Estimate!!To…\n$ concept   &lt;chr&gt; \"Sex by Age (White Alone)\", \"Sex by Age (White Alone)\", \"Sex…\n$ geography &lt;chr&gt; \"tract\", \"tract\", \"tract\", \"tract\", \"tract\", \"tract\", \"tract…"
   },
   {
     "objectID": "Slides.html#find-variables-1",
     "href": "Slides.html#find-variables-1",
     "title": "Accessing Census Data in R through APIs",
     "section": "Find variables",
-    "text": "Find variables\n\nLooking at 5-year ACS data\n\n\nfindvars_tidy %&gt;%\n  arrange(name) %&gt;%\n  filter(str_detect(str_to_lower(concept), \"occupancy\"))\n\n# A tibble: 30 × 4\n   name       label                                            concept geography\n   &lt;chr&gt;      &lt;chr&gt;                                            &lt;chr&gt;   &lt;chr&gt;    \n 1 B25002_001 Estimate!!Total:                                 Occupa… block gr…\n 2 B25002_002 Estimate!!Total:!!Occupied                       Occupa… block gr…\n 3 B25002_003 Estimate!!Total:!!Vacant                         Occupa… block gr…\n 4 B25136_001 Estimate!!Total Housing Units:                   Struct… block gr…\n 5 B25136_002 Estimate!!Total Housing Units:!!Occupied Units   Struct… block gr…\n 6 B25136_003 Estimate!!Total Housing Units:!!Occupied Units!… Struct… block gr…\n 7 B25136_004 Estimate!!Total Housing Units:!!Occupied Units!… Struct… block gr…\n 8 B25136_005 Estimate!!Total Housing Units:!!Occupied Units!… Struct… block gr…\n 9 B25136_006 Estimate!!Total Housing Units:!!Occupied Units!… Struct… block gr…\n10 B25136_007 Estimate!!Total Housing Units:!!Occupied Units!… Struct… block gr…\n# ℹ 20 more rows"
+    "text": "Find variables\n\nLooking at 5-year ACS data for School Enrollment variables available at block group level\nAfter manually exploring the data, determine we want the variables from the concept “School Enrollment by Detailed Level of School for the Population 3 Years and Over” (B14007)\n\n\nfindvars_tidy %&gt;%\n  filter(str_detect(concept, \"School Enrollment\"),\n         geography == \"block group\") %&gt;%\n  mutate(Table=word(name, 1, sep=\"_\")) %&gt;%\n  count(Table, concept)\n\n# A tibble: 13 × 3\n   Table   concept                                                             n\n   &lt;chr&gt;   &lt;chr&gt;                                                           &lt;int&gt;\n 1 B14002  Sex by School Enrollment by Level of School by Type of School …    49\n 2 B14005  Sex by School Enrollment by Educational Attainment by Employme…    29\n 3 B14007  School Enrollment by Detailed Level of School for the Populati…    19\n 4 B14007A School Enrollment by Detailed Level of School for the Populati…    19\n 5 B14007B School Enrollment by Detailed Level of School for the Populati…    19\n 6 B14007C School Enrollment by Detailed Level of School for the Populati…    19\n 7 B14007D School Enrollment by Detailed Level of School for the Populati…    19\n 8 B14007E School Enrollment by Detailed Level of School for the Populati…    19\n 9 B14007F School Enrollment by Detailed Level of School for the Populati…    19\n10 B14007G School Enrollment by Detailed Level of School for the Populati…    19\n11 B14007H School Enrollment by Detailed Level of School for the Populati…    19\n12 B14007I School Enrollment by Detailed Level of School for the Populati…    19\n13 B99141  Allocation of School Enrollment for the Population 3 Years and…     3\n\nfindvars_tidy %&gt;% \n  filter(str_detect(name, \"B14007_\")) %&gt;%\n  select(name, label)\n\n# A tibble: 19 × 2\n   name       label                                                             \n   &lt;chr&gt;      &lt;chr&gt;                                                             \n 1 B14007_001 Estimate!!Total:                                                  \n 2 B14007_002 Estimate!!Total:!!Enrolled in school:                             \n 3 B14007_003 Estimate!!Total:!!Enrolled in school:!!Enrolled in nursery school…\n 4 B14007_004 Estimate!!Total:!!Enrolled in school:!!Enrolled in kindergarten   \n 5 B14007_005 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 1        \n 6 B14007_006 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 2        \n 7 B14007_007 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 3        \n 8 B14007_008 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 4        \n 9 B14007_009 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 5        \n10 B14007_010 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 6        \n11 B14007_011 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 7        \n12 B14007_012 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 8        \n13 B14007_013 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 9        \n14 B14007_014 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 10       \n15 B14007_015 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 11       \n16 B14007_016 Estimate!!Total:!!Enrolled in school:!!Enrolled in grade 12       \n17 B14007_017 Estimate!!Total:!!Enrolled in school:!!Enrolled in college, under…\n18 B14007_018 Estimate!!Total:!!Enrolled in school:!!Graduate or professional s…\n19 B14007_019 Estimate!!Total:!!Not enrolled in school"
   },
   {
-    "objectID": "Slides.html#clean-up-variable-labels-for-later",
-    "href": "Slides.html#clean-up-variable-labels-for-later",
+    "objectID": "Slides.html#clean-up-variable-labels",
+    "href": "Slides.html#clean-up-variable-labels",
     "title": "Accessing Census Data in R through APIs",
-    "section": "Clean up variable labels for later",
-    "text": "Clean up variable labels for later\n\nmyvars_labeled &lt;-\n  findvars_tidy %&gt;%\n  filter(str_detect(name, \"B25002\")) %&gt;%\n  separate_wider_delim(label, names = c(NA, NA, \"Status\"), delim = \"!!\", too_few = \"align_start\") %&gt;%\n  mutate(Status = if_else(is.na(Status), \"All\", Status)) %&gt;%\n  select(name, Status)\n\nmyvars_labeled\n\n# A tibble: 3 × 2\n  name       Status  \n  &lt;chr&gt;      &lt;chr&gt;   \n1 B25002_001 All     \n2 B25002_002 Occupied\n3 B25002_003 Vacant"
+    "section": "Clean up variable labels",
+    "text": "Clean up variable labels\n\nmyvars_labeled\n\n# A tibble: 17 × 2\n   name       EducEnrollment                          \n   &lt;chr&gt;      &lt;chr&gt;                                   \n 1 B14007_003 Enrolled in nursery school, preschool   \n 2 B14007_004 Enrolled in kindergarten                \n 3 B14007_005 Enrolled in grade 1                     \n 4 B14007_006 Enrolled in grade 2                     \n 5 B14007_007 Enrolled in grade 3                     \n 6 B14007_008 Enrolled in grade 4                     \n 7 B14007_009 Enrolled in grade 5                     \n 8 B14007_010 Enrolled in grade 6                     \n 9 B14007_011 Enrolled in grade 7                     \n10 B14007_012 Enrolled in grade 8                     \n11 B14007_013 Enrolled in grade 9                     \n12 B14007_014 Enrolled in grade 10                    \n13 B14007_015 Enrolled in grade 11                    \n14 B14007_016 Enrolled in grade 12                    \n15 B14007_017 Enrolled in college, undergraduate years\n16 B14007_018 Graduate or professional school         \n17 B14007_019 Not enrolled in school"
   },
   {
     "objectID": "Slides.html#get-the-data",
     "href": "Slides.html#get-the-data",
     "title": "Accessing Census Data in R through APIs",
     "section": "Get the data",
-    "text": "Get the data\n\nvocc_durham_tidy &lt;- get_acs(\n  geography = \"block group\",\n  variables = pull(myvars_labeled, name),\n  year = year_select,\n  survey = \"acs5\",\n  state = \"37\",\n  county = \"063\",\n  geometry = TRUE\n)"
+    "text": "Get the data\n\nsch_enroll_tidy &lt;- get_acs(\n  geography = \"block group\",\n  variables = pull(myvars_labeled, name),\n  year = year_select,\n  survey = \"acs5\",\n  state = \"37\",\n  county = \"063\",\n  geometry = TRUE\n)"
   },
   {
     "objectID": "Slides.html#get-the-data-1",
     "href": "Slides.html#get-the-data-1",
     "title": "Accessing Census Data in R through APIs",
     "section": "Get the data",
-    "text": "Get the data\n\nvocc_durham_tidy\n\nSimple feature collection with 714 features and 5 fields\nGeometry type: MULTIPOLYGON\nDimension:     XY\nBounding box:  xmin: -79.0163 ymin: 35.86321 xmax: -78.69985 ymax: 36.23932\nGeodetic CRS:  NAD83\nFirst 10 features:\n          GEOID\n1  370630018023\n2  370630018023\n3  370630018023\n4  370630020152\n5  370630020152\n6  370630020152\n7  370630002002\n8  370630002002\n9  370630002002\n10 370630017132\n                                                               NAME   variable\n1  Block Group 3; Census Tract 18.02; Durham County; North Carolina B25002_001\n2  Block Group 3; Census Tract 18.02; Durham County; North Carolina B25002_002\n3  Block Group 3; Census Tract 18.02; Durham County; North Carolina B25002_003\n4  Block Group 2; Census Tract 20.15; Durham County; North Carolina B25002_001\n5  Block Group 2; Census Tract 20.15; Durham County; North Carolina B25002_002\n6  Block Group 2; Census Tract 20.15; Durham County; North Carolina B25002_003\n7      Block Group 2; Census Tract 2; Durham County; North Carolina B25002_001\n8      Block Group 2; Census Tract 2; Durham County; North Carolina B25002_002\n9      Block Group 2; Census Tract 2; Durham County; North Carolina B25002_003\n10 Block Group 2; Census Tract 17.13; Durham County; North Carolina B25002_001\n   estimate moe                       geometry\n1       628 156 MULTIPOLYGON (((-78.86279 3...\n2       573 151 MULTIPOLYGON (((-78.86279 3...\n3        55  67 MULTIPOLYGON (((-78.86279 3...\n4       454 161 MULTIPOLYGON (((-78.96238 3...\n5       454 161 MULTIPOLYGON (((-78.96238 3...\n6         0  14 MULTIPOLYGON (((-78.96238 3...\n7       429 125 MULTIPOLYGON (((-78.90199 3...\n8       420 124 MULTIPOLYGON (((-78.90199 3...\n9         9  14 MULTIPOLYGON (((-78.90199 3...\n10      199  84 MULTIPOLYGON (((-78.9732 36..."
+    "text": "Get the data\n\nsch_enroll_tidy\n\nSimple feature collection with 4046 features and 5 fields\nGeometry type: MULTIPOLYGON\nDimension:     XY\nBounding box:  xmin: -79.0163 ymin: 35.86321 xmax: -78.69985 ymax: 36.23932\nGeodetic CRS:  NAD83\nFirst 10 features:\n          GEOID\n1  370630018023\n2  370630018023\n3  370630018023\n4  370630018023\n5  370630018023\n6  370630018023\n7  370630018023\n8  370630018023\n9  370630018023\n10 370630018023\n                                                               NAME   variable\n1  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_003\n2  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_004\n3  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_005\n4  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_006\n5  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_007\n6  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_008\n7  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_009\n8  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_010\n9  Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_011\n10 Block Group 3; Census Tract 18.02; Durham County; North Carolina B14007_012\n   estimate moe                       geometry\n1         0  14 MULTIPOLYGON (((-78.86279 3...\n2         1   3 MULTIPOLYGON (((-78.86279 3...\n3         0  14 MULTIPOLYGON (((-78.86279 3...\n4        61  65 MULTIPOLYGON (((-78.86279 3...\n5        51  58 MULTIPOLYGON (((-78.86279 3...\n6        11  19 MULTIPOLYGON (((-78.86279 3...\n7         0  14 MULTIPOLYGON (((-78.86279 3...\n8        29  47 MULTIPOLYGON (((-78.86279 3...\n9        30  50 MULTIPOLYGON (((-78.86279 3...\n10       33  48 MULTIPOLYGON (((-78.86279 3..."
   },
   {
     "objectID": "Slides.html#label-data",
     "href": "Slides.html#label-data",
     "title": "Accessing Census Data in R through APIs",
     "section": "Label data",
-    "text": "Label data\n\nvocc_durham_tidy_lab &lt;-\n  vocc_durham_tidy %&gt;%\n  select(-NAME) %&gt;%\n  left_join(myvars_labeled, by = c(\"variable\" = \"name\"))\n\nvocc_durham_tidy_lab\n\nSimple feature collection with 714 features and 5 fields\nGeometry type: MULTIPOLYGON\nDimension:     XY\nBounding box:  xmin: -79.0163 ymin: 35.86321 xmax: -78.69985 ymax: 36.23932\nGeodetic CRS:  NAD83\nFirst 10 features:\n          GEOID   variable estimate moe   Status                       geometry\n1  370630018023 B25002_001      628 156      All MULTIPOLYGON (((-78.86279 3...\n2  370630018023 B25002_002      573 151 Occupied MULTIPOLYGON (((-78.86279 3...\n3  370630018023 B25002_003       55  67   Vacant MULTIPOLYGON (((-78.86279 3...\n4  370630020152 B25002_001      454 161      All MULTIPOLYGON (((-78.96238 3...\n5  370630020152 B25002_002      454 161 Occupied MULTIPOLYGON (((-78.96238 3...\n6  370630020152 B25002_003        0  14   Vacant MULTIPOLYGON (((-78.96238 3...\n7  370630002002 B25002_001      429 125      All MULTIPOLYGON (((-78.90199 3...\n8  370630002002 B25002_002      420 124 Occupied MULTIPOLYGON (((-78.90199 3...\n9  370630002002 B25002_003        9  14   Vacant MULTIPOLYGON (((-78.90199 3...\n10 370630017132 B25002_001      199  84      All MULTIPOLYGON (((-78.9732 36..."
+    "text": "Label data\n\nsch_enroll_tidy_lab &lt;-\n  sch_enroll_tidy %&gt;%\n  select(-NAME) %&gt;%\n  left_join(myvars_labeled, by = c(\"variable\" = \"name\"))\n\nsch_enroll_tidy_lab\n\nSimple feature collection with 4046 features and 5 fields\nGeometry type: MULTIPOLYGON\nDimension:     XY\nBounding box:  xmin: -79.0163 ymin: 35.86321 xmax: -78.69985 ymax: 36.23932\nGeodetic CRS:  NAD83\nFirst 10 features:\n          GEOID   variable estimate moe                        EducEnrollment\n1  370630018023 B14007_003        0  14 Enrolled in nursery school, preschool\n2  370630018023 B14007_004        1   3              Enrolled in kindergarten\n3  370630018023 B14007_005        0  14                   Enrolled in grade 1\n4  370630018023 B14007_006       61  65                   Enrolled in grade 2\n5  370630018023 B14007_007       51  58                   Enrolled in grade 3\n6  370630018023 B14007_008       11  19                   Enrolled in grade 4\n7  370630018023 B14007_009        0  14                   Enrolled in grade 5\n8  370630018023 B14007_010       29  47                   Enrolled in grade 6\n9  370630018023 B14007_011       30  50                   Enrolled in grade 7\n10 370630018023 B14007_012       33  48                   Enrolled in grade 8\n                         geometry\n1  MULTIPOLYGON (((-78.86279 3...\n2  MULTIPOLYGON (((-78.86279 3...\n3  MULTIPOLYGON (((-78.86279 3...\n4  MULTIPOLYGON (((-78.86279 3...\n5  MULTIPOLYGON (((-78.86279 3...\n6  MULTIPOLYGON (((-78.86279 3...\n7  MULTIPOLYGON (((-78.86279 3...\n8  MULTIPOLYGON (((-78.86279 3...\n9  MULTIPOLYGON (((-78.86279 3...\n10 MULTIPOLYGON (((-78.86279 3..."
   },
   {
-    "objectID": "Slides.html#bonus---easy-map---by-occupancy-status",
-    "href": "Slides.html#bonus---easy-map---by-occupancy-status",
+    "objectID": "Slides.html#calculate-percent-in-collegegrad-school-by-area",
+    "href": "Slides.html#calculate-percent-in-collegegrad-school-by-area",
     "title": "Accessing Census Data in R through APIs",
-    "section": "Bonus - easy map - by occupancy status",
-    "text": "Bonus - easy map - by occupancy status\n\nvocc_durham_tidy_lab %&gt;%\n  filter(Status != \"All\") %&gt;%\n  group_by(GEOID) %&gt;%\n  mutate(Percent = estimate / sum(estimate) * 100) %&gt;%\n  ggplot(aes(fill = Percent)) +\n  geom_sf() +\n  facet_wrap(~Status) +\n  theme_map() +\n  scale_fill_viridis_c(option = \"plasma\") +\n  theme(legend.position = \"bottom\")"
+    "section": "Calculate percent in college/grad school by area",
+    "text": "Calculate percent in college/grad school by area\n\nsch_enroll_tidy_pct &lt;- sch_enroll_tidy_lab %&gt;%\n  mutate(\n    Percent=estimate/sum(estimate)*100,\n    .by=\"GEOID\"\n  ) %&gt;%\n  filter(str_detect(EducEnrollment, \"college|Grad\")) %&gt;%\n  group_by(GEOID) %&gt;%\n  summarize(\n    Percent=sum(Percent), \n    .groups= \"drop\")"
   },
   {
-    "objectID": "Slides.html#bonus---easy-map---by-occupancy-status-1",
-    "href": "Slides.html#bonus---easy-map---by-occupancy-status-1",
+    "objectID": "Slides.html#map-of-where-college-students-live",
+    "href": "Slides.html#map-of-where-college-students-live",
     "title": "Accessing Census Data in R through APIs",
-    "section": "Bonus - easy map - by occupancy status",
-    "text": "Bonus - easy map - by occupancy status"
+    "section": "Map of where college students live",
+    "text": "Map of where college students live\n\nsch_enroll_tidy_pct %&gt;%\n  ggplot(aes(fill = Percent)) +\n  geom_sf() +\n  theme_map() +\n  scale_fill_viridis_c(option = \"plasma\") +\n  theme(legend.position = \"bottom\")"
+  },
+  {
+    "objectID": "Slides.html#map-of-where-college-students-live-1",
+    "href": "Slides.html#map-of-where-college-students-live-1",
+    "title": "Accessing Census Data in R through APIs",
+    "section": "Map of where college students live",
+    "text": "Map of where college students live"
   },
   {
     "objectID": "Slides.html#workflow",
@@ -102,14 +116,14 @@
     "href": "Slides.html#identify-variables",
     "title": "Accessing Census Data in R through APIs",
     "section": "Identify variables",
-    "text": "Identify variables\n\npums_vars_2023 &lt;-\n  pums_variables %&gt;%\n  filter(year == year_select, survey == \"acs5\")\n\npums_vars_2023 %&gt;% print(n = 6)\n\n# A tibble: 5,434 × 12\n  survey year  var_code var_label      data_type level val_min val_max val_label\n  &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;          &lt;chr&gt;     &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;    \n1 acs5   2023  SERIALNO Housing unit/… chr       &lt;NA&gt;  2019GQ… 2023GQ… GQ Uniqu…\n2 acs5   2023  SERIALNO Housing unit/… chr       &lt;NA&gt;  2019HU… 2023HU… HU Uniqu…\n3 acs5   2023  DIVISION Division code  chr       &lt;NA&gt;  0       0       Puerto R…\n4 acs5   2023  DIVISION Division code  chr       &lt;NA&gt;  1       1       New Engl…\n5 acs5   2023  DIVISION Division code  chr       &lt;NA&gt;  2       2       Middle A…\n6 acs5   2023  DIVISION Division code  chr       &lt;NA&gt;  3       3       East Nor…\n# ℹ 5,428 more rows\n# ℹ 3 more variables: recode &lt;lgl&gt;, val_length &lt;int&gt;, val_na &lt;dbl&gt;\n\n\n\nThere are 516 distinct variables!\nCan also review data dictionary"
+    "text": "Identify variables\n\npums_vars_2023 &lt;-\n  pums_variables %&gt;%\n  filter(year == year_select, survey == \"acs5\")\n\npums_vars_2023 %&gt;% print(n = 5)\n\n# A tibble: 5,434 × 12\n  survey year  var_code var_label      data_type level val_min val_max val_label\n  &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt;          &lt;chr&gt;     &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;   &lt;chr&gt;    \n1 acs5   2023  SERIALNO Housing unit/… chr       &lt;NA&gt;  2019GQ… 2023GQ… GQ Uniqu…\n2 acs5   2023  SERIALNO Housing unit/… chr       &lt;NA&gt;  2019HU… 2023HU… HU Uniqu…\n3 acs5   2023  DIVISION Division code  chr       &lt;NA&gt;  0       0       Puerto R…\n4 acs5   2023  DIVISION Division code  chr       &lt;NA&gt;  1       1       New Engl…\n5 acs5   2023  DIVISION Division code  chr       &lt;NA&gt;  2       2       Middle A…\n# ℹ 5,429 more rows\n# ℹ 3 more variables: recode &lt;lgl&gt;, val_length &lt;int&gt;, val_na &lt;dbl&gt;\n\n\n\nThere are 516 distinct variables!\nCan also review data dictionary"
   },
   {
     "objectID": "Slides.html#get-some-microdata",
     "href": "Slides.html#get-some-microdata",
     "title": "Accessing Census Data in R through APIs",
     "section": "Get some microdata",
-    "text": "Get some microdata\n\nFor Durham, we want PUMAs 37 01301 and 37 01302 (Durham County South and North, respectively)1\n\npums_recoded &lt;- get_pums(\n  variables = c(\"PUMA\", \"SEX\", \"AGEP\", \"SCHL\", \"SCHG\"),\n  state = \"NC\",\n  puma = c(\"01301\", \"01302\"),\n  survey = \"acs5\",\n  year = year_select,\n  recode = TRUE,\n  rep_weights = \"person\"\n  )\nhttps://www2.census.gov/geo/pdfs/reference/puma2020/2020_PUMA_Names.pdf"
+    "text": "Get some microdata\n\nFor Durham, we want PUMAs1 37 01301 and 37 01302 (Durham County South and North, respectively)2\n\npums_recoded &lt;- get_pums(\n  variables = c(\"PUMA\", \"SEX\", \"AGEP\", \"SCHL\", \"SCHG\"),\n  state = \"NC\",\n  puma = c(\"01301\", \"01302\"),\n  survey = \"acs5\",\n  year = year_select,\n  recode = TRUE,\n  rep_weights = \"person\"\n  )\nPublic Use Microdata Areashttps://www2.census.gov/geo/pdfs/reference/puma2020/2020_PUMA_Names.pdf"
   },
   {
     "objectID": "Slides.html#glimpse-the-microdata",
@@ -131,12 +145,5 @@
     "title": "Accessing Census Data in R through APIs",
     "section": "Make custom estimates",
     "text": "Make custom estimates\n\nExample: Level of school attendance among those who have finished high school, age 18-25\n\n\n\n# A tibble: 8 × 6\n# Groups:   PUMA [2]\n  PUMA  SCHG_label                                         N  N_se    Pct Pct_se\n  &lt;chr&gt; &lt;ord&gt;                                          &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;\n1 01301 N/A (not attending school)                      9769 719.  42.1    2.46 \n2 01301 Grade 12                                          66  55.9  0.284  0.239\n3 01301 College undergraduate years (freshman to seni… 10365 464.  44.7    1.76 \n4 01301 Graduate or professional school beyond a bach…  3013 352.  13.0    1.47 \n5 01302 N/A (not attending school)                      7715 656.  55.5    3.28 \n6 01302 Grade 12                                         429 218.   3.08   1.53 \n7 01302 College undergraduate years (freshman to seni…  4533 484.  32.6    3.16 \n8 01302 Graduate or professional school beyond a bach…  1234 235.   8.87   1.61"
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Accessing Census Data in R through APIs",
-    "section": "",
-    "text": "This talk will give an overview of Census APIs available and how to find out which surveys have data available through the Census API. Brief examples will be given on how to use the censusapi R package which can access any data in the API. The tidycensus R package specifically can access ACS tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data. This tutorial will give examples of how to find relevant variables from ACS tables or decennial data using the tidycensus package. Examples of getting the data will be provided and how to easily make maps of the data."
   }
 ]
