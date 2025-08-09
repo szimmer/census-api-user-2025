@@ -122,12 +122,14 @@ glimpse(findvars_tidy)
 #| label: findvars-dt
 
 findvars_tidy %>%
-  filter(str_detect(concept, "School Enrollment"),
-         geography == "block group") %>%
-  mutate(Table=word(name, 1, sep="_")) %>%
+  filter(
+    str_detect(concept, "School Enrollment"),
+    geography == "block group"
+  ) %>%
+  mutate(Table = word(name, 1, sep = "_")) %>%
   count(Table, concept)
 
-findvars_tidy %>% 
+findvars_tidy %>%
   filter(str_detect(name, "B14007_")) %>%
   select(name, label)
 ```
@@ -141,12 +143,13 @@ findvars_tidy %>%
 myvars_labeled <-
   findvars_tidy %>%
   filter(str_detect(name, "B14007_")) %>%
-  mutate(label=str_remove_all(label, ":")) %>%
-  separate_wider_delim(label, 
-                       names = c(NA, NA, "Enrollment", "Level"), 
-                       delim = "!!", too_few = "align_start") %>%
+  mutate(label = str_remove_all(label, ":")) %>%
+  separate_wider_delim(label,
+    names = c(NA, NA, "Enrollment", "Level"),
+    delim = "!!", too_few = "align_start"
+  ) %>%
   filter(!is.na(Level) | Enrollment == "Not enrolled in school") %>%
-  mutate(EducEnrollment=coalesce(Level, Enrollment)) %>%
+  mutate(EducEnrollment = coalesce(Level, Enrollment)) %>%
   select(name, EducEnrollment)
 ```
 
@@ -193,30 +196,28 @@ sch_enroll_tidy_lab <-
 sch_enroll_tidy_lab
 ```
 
-## Calculate percent in college/grad school by area
+## Calculate number in college/grad school by area
 
 ```{r}
-sch_enroll_tidy_pct <- sch_enroll_tidy_lab %>%
-  mutate(
-    Percent=estimate/sum(estimate)*100,
-    .by="GEOID"
-  ) %>%
+#| label: calc-percent
+college_enroll_tidy <- sch_enroll_tidy_lab %>%
   filter(str_detect(EducEnrollment, "college|Grad")) %>%
   group_by(GEOID) %>%
   summarize(
-    Percent=sum(Percent), 
-    .groups= "drop")
-  
+    N = sum(estimate),
+    .groups = "drop"
+  )
 ```
 
 
 ## Map of where college students live
 
+
 ```{r}
 #| label: bymap
 #| eval: false
-sch_enroll_tidy_pct %>%
-  ggplot(aes(fill = Percent)) +
+college_enroll_tidy %>%
+  ggplot(aes(fill = N)) +
   geom_sf() +
   theme_map() +
   scale_fill_viridis_c(option = "plasma") +
