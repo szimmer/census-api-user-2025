@@ -25,6 +25,8 @@ library(DT)
 library(ggplot2)
 library(ggthemes)
 library(srvyr)
+library(tidycensus)
+library(sf)
 ```
 
 
@@ -52,7 +54,7 @@ library(srvyr)
   - Not discussed today
 
 - **tidycensus**
-  - ACS tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data
+  - American Community Survey (ACS) tables, ACS microdata, Decennial tables, PEP tables, and ACS migration flow data
   - Nice wrappers
   - Data has special missing codes changed to `r NA`
 
@@ -76,7 +78,7 @@ Retrieve using:
 Sys.getenv("CENSUS_API_KEY")
 ```
 
-# tidycensus package example
+# Tabular data from ACS
 
 ## Workflow for getting tabular estimates
 
@@ -88,7 +90,7 @@ Sys.getenv("CENSUS_API_KEY")
 
 ## Motivating example
 
-Find number of housing units by occupancy status in each block group in Durham County, NC from ACS 2019-2023 data
+Find number of housing units by where current college students live in each block group in Durham County, NC from ACS 2019-2023 data
 
 ```{r}
 #| label: yearset
@@ -102,36 +104,57 @@ year_select <- 2023
 
 ```{r}
 #| label: findvarsb
+#| cache: true
 library(tidycensus)
 library(sf)
 findvars_tidy <- load_variables(year = year_select, dataset = "acs5")
+glimpse(findvars_tidy)
 ```
+
+
 
 ## Find variables
 
-- Looking at 5-year ACS data
+- Looking at 5-year ACS data for School Enrollment variables available at block group level
+- After manually exploring the data, determine we want the variables from the concept "School Enrollment by Detailed Level of School for the Population 3 Years and Over" (B14007)
 
 ```{r}
 #| label: findvars-dt
 
 findvars_tidy %>%
-  arrange(name) %>%
-  filter(str_detect(str_to_lower(concept), "occupancy"))
+  filter(str_detect(concept, "School Enrollment"),
+         geography == "block group") %>%
+  mutate(Table=word(name, 1, sep="_")) %>%
+  count(Table, concept)
+
+findvars_tidy %>% 
+  filter(str_detect(name, "B14007_")) %>%
+  select(name, label)
 ```
 
-## Clean up variable labels for later
+
+## Clean up variable labels
 
 ```{r}
 #| label: cleannames
+#| include: false
 myvars_labeled <-
   findvars_tidy %>%
-  filter(str_detect(name, "B25002")) %>%
-  separate_wider_delim(label, names = c(NA, NA, "Status"), delim = "!!", too_few = "align_start") %>%
-  mutate(Status = if_else(is.na(Status), "All", Status)) %>%
-  select(name, Status)
+  filter(str_detect(name, "B14007_")) %>%
+  mutate(label=str_remove_all(label, ":")) %>%
+  separate_wider_delim(label, 
+                       names = c(NA, NA, "Enrollment", "Level"), 
+                       delim = "!!", too_few = "align_start") %>%
+  filter(!is.na(Level) | Enrollment == "Not enrolled in school") %>%
+  mutate(EducEnrollment=coalesce(Level, Enrollment)) %>%
+  select(name, EducEnrollment)
+```
 
+```{r}
+#| label: print-clean-labels
 myvars_labeled
 ```
+
 
 ## Get the data
 
@@ -139,7 +162,7 @@ myvars_labeled
 #| label: getdat2
 #| output: false
 #| warning: false
-vocc_durham_tidy <- get_acs(
+sch_enroll_tidy <- get_acs(
   geography = "block group",
   variables = pull(myvars_labeled, name),
   year = year_select,
@@ -154,7 +177,7 @@ vocc_durham_tidy <- get_acs(
 
 ```{r}
 #| label: getdat3
-vocc_durham_tidy
+sch_enroll_tidy
 ```
 
 ## Label data
@@ -162,33 +185,46 @@ vocc_durham_tidy
 
 ```{r}
 #| label: labdat
-vocc_durham_tidy_lab <-
-  vocc_durham_tidy %>%
+sch_enroll_tidy_lab <-
+  sch_enroll_tidy %>%
   select(-NAME) %>%
   left_join(myvars_labeled, by = c("variable" = "name"))
 
-vocc_durham_tidy_lab
+sch_enroll_tidy_lab
 ```
 
-## Bonus - easy map - by occupancy status
+## Calculate percent in college/grad school by area
+
+```{r}
+sch_enroll_tidy_pct <- sch_enroll_tidy_lab %>%
+  mutate(
+    Percent=estimate/sum(estimate)*100,
+    .by="GEOID"
+  ) %>%
+  filter(str_detect(EducEnrollment, "college|Grad")) %>%
+  group_by(GEOID) %>%
+  summarize(
+    Percent=sum(Percent), 
+    .groups= "drop")
+  
+```
+
+
+## Map of where college students live
 
 ```{r}
 #| label: bymap
 #| eval: false
-vocc_durham_tidy_lab %>%
-  filter(Status != "All") %>%
-  group_by(GEOID) %>%
-  mutate(Percent = estimate / sum(estimate) * 100) %>%
+sch_enroll_tidy_pct %>%
   ggplot(aes(fill = Percent)) +
   geom_sf() +
-  facet_wrap(~Status) +
   theme_map() +
   scale_fill_viridis_c(option = "plasma") +
   theme(legend.position = "bottom")
 ```
 
 
-## Bonus - easy map - by occupancy status
+## Map of where college students live
 
 ```{r}
 #| label: bymap-do
@@ -198,7 +234,7 @@ vocc_durham_tidy_lab %>%
 ```
 
 
-# Microdata in ACS - tidycensus
+# Microdata from ACS
 
 ## Workflow
 
@@ -211,20 +247,29 @@ Warning - this data can be large!!!
 ## Identify variables 
 
 ```{r}
+#| label: pums-var-ext
 pums_vars_2023 <-
   pums_variables %>%
   filter(year == year_select, survey == "acs5")
 
-pums_vars_2023 %>% print(n = 6)
+pums_vars_2023 %>% print(n = 5)
 ```
 
-- There are `r nrow(pums_vars_2023 %>% distinct(var_code))` distinct variables!
+```{r}
+#| label: calcnrows
+#| include: false
+
+pums_vars_n <- nrow(pums_vars_2023 %>% distinct(var_code))
+```
+
+
+- There are `r pums_vars_n` distinct variables!
 - Can also review [data dictionary](https://www2.census.gov/programs-surveys/acs/tech_docs/pums/data_dict/PUMS_Data_Dictionary_2019-2023.pdf)
 
 
 ## Get some microdata
 
-- For Durham, we want PUMAs 37 01301 and 37 01302 (Durham County South and North, respectively)^[https://www2.census.gov/geo/pdfs/reference/puma2020/2020_PUMA_Names.pdf]
+- For Durham, we want PUMAs^[Public Use Microdata Areas] 37 01301 and 37 01302 (Durham County South and North, respectively)^[https://www2.census.gov/geo/pdfs/reference/puma2020/2020_PUMA_Names.pdf]
 
 ```r
 pums_recoded <- get_pums(
