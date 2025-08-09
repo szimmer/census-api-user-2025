@@ -303,10 +303,12 @@ $ geography &lt;chr&gt; "tract", "tract", "tract", "tract", "tract", "tract", "t
 </ul>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a></a>findvars_tidy <span class="sc">%&gt;%</span></span>
-<span id="cb6-2"><a></a>  <span class="fu">filter</span>(<span class="fu">str_detect</span>(concept, <span class="st">"School Enrollment"</span>),</span>
-<span id="cb6-3"><a></a>         geography <span class="sc">==</span> <span class="st">"block group"</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-4"><a></a>  <span class="fu">mutate</span>(<span class="at">Table=</span><span class="fu">word</span>(name, <span class="dv">1</span>, <span class="at">sep=</span><span class="st">"_"</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb6-5"><a></a>  <span class="fu">count</span>(Table, concept)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-2"><a></a>  <span class="fu">filter</span>(</span>
+<span id="cb6-3"><a></a>    <span class="fu">str_detect</span>(concept, <span class="st">"School Enrollment"</span>),</span>
+<span id="cb6-4"><a></a>    geography <span class="sc">==</span> <span class="st">"block group"</span></span>
+<span id="cb6-5"><a></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb6-6"><a></a>  <span class="fu">mutate</span>(<span class="at">Table =</span> <span class="fu">word</span>(name, <span class="dv">1</span>, <span class="at">sep =</span> <span class="st">"_"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb6-7"><a></a>  <span class="fu">count</span>(Table, concept)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 13 × 3
    Table   concept                                                             n
@@ -325,7 +327,7 @@ $ geography &lt;chr&gt; "tract", "tract", "tract", "tract", "tract", "tract", "t
 12 B14007I School Enrollment by Detailed Level of School for the Populati…    19
 13 B99141  Allocation of School Enrollment for the Population 3 Years and…     3</code></pre>
 </div>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a></a>findvars_tidy <span class="sc">%&gt;%</span> </span>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a></a>findvars_tidy <span class="sc">%&gt;%</span></span>
 <span id="cb8-2"><a></a>  <span class="fu">filter</span>(<span class="fu">str_detect</span>(name, <span class="st">"B14007_"</span>)) <span class="sc">%&gt;%</span></span>
 <span id="cb8-3"><a></a>  <span class="fu">select</span>(name, label)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
@@ -484,26 +486,23 @@ First 10 features:
 </div>
 </div>
 </section>
-<section id="calculate-percent-in-collegegrad-school-by-area" class="slide level2">
-<h2>Calculate percent in college/grad school by area</h2>
+<section id="calculate-number-in-collegegrad-school-by-area" class="slide level2">
+<h2>Calculate number in college/grad school by area</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a></a>sch_enroll_tidy_pct <span class="ot">&lt;-</span> sch_enroll_tidy_lab <span class="sc">%&gt;%</span></span>
-<span id="cb17-2"><a></a>  <span class="fu">mutate</span>(</span>
-<span id="cb17-3"><a></a>    <span class="at">Percent=</span>estimate<span class="sc">/</span><span class="fu">sum</span>(estimate)<span class="sc">*</span><span class="dv">100</span>,</span>
-<span id="cb17-4"><a></a>    <span class="at">.by=</span><span class="st">"GEOID"</span></span>
-<span id="cb17-5"><a></a>  ) <span class="sc">%&gt;%</span></span>
-<span id="cb17-6"><a></a>  <span class="fu">filter</span>(<span class="fu">str_detect</span>(EducEnrollment, <span class="st">"college|Grad"</span>)) <span class="sc">%&gt;%</span></span>
-<span id="cb17-7"><a></a>  <span class="fu">group_by</span>(GEOID) <span class="sc">%&gt;%</span></span>
-<span id="cb17-8"><a></a>  <span class="fu">summarize</span>(</span>
-<span id="cb17-9"><a></a>    <span class="at">Percent=</span><span class="fu">sum</span>(Percent), </span>
-<span id="cb17-10"><a></a>    <span class="at">.groups=</span> <span class="st">"drop"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a></a>college_enroll_tidy <span class="ot">&lt;-</span> sch_enroll_tidy_lab <span class="sc">%&gt;%</span></span>
+<span id="cb17-2"><a></a>  <span class="fu">filter</span>(<span class="fu">str_detect</span>(EducEnrollment, <span class="st">"college|Grad"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb17-3"><a></a>  <span class="fu">group_by</span>(GEOID) <span class="sc">%&gt;%</span></span>
+<span id="cb17-4"><a></a>  <span class="fu">summarize</span>(</span>
+<span id="cb17-5"><a></a>    <span class="at">N =</span> <span class="fu">sum</span>(estimate),</span>
+<span id="cb17-6"><a></a>    <span class="at">.groups =</span> <span class="st">"drop"</span></span>
+<span id="cb17-7"><a></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="map-of-where-college-students-live" class="slide level2">
 <h2>Map of where college students live</h2>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a></a>sch_enroll_tidy_pct <span class="sc">%&gt;%</span></span>
-<span id="cb18-2"><a></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">fill =</span> Percent)) <span class="sc">+</span></span>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode numberSource r number-lines code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a></a>college_enroll_tidy <span class="sc">%&gt;%</span></span>
+<span id="cb18-2"><a></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">fill =</span> N)) <span class="sc">+</span></span>
 <span id="cb18-3"><a></a>  <span class="fu">geom_sf</span>() <span class="sc">+</span></span>
 <span id="cb18-4"><a></a>  <span class="fu">theme_map</span>() <span class="sc">+</span></span>
 <span id="cb18-5"><a></a>  <span class="fu">scale_fill_viridis_c</span>(<span class="at">option =</span> <span class="st">"plasma"</span>) <span class="sc">+</span></span>
